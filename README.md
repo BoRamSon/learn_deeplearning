@@ -1,2 +1,2 @@
-# learn_deeplearning
-Study with DeepLearning from Scratch
+# learn_deeplearning  
+Study with `DeepLearning from Scratch`  
