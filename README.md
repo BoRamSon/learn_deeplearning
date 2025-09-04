@@ -2,7 +2,7 @@
 
 <br>
 
-## 🟢 Study with `DeepLearning from Scratch`  
+## 🟢 Study with **`DeepLearning from Scratch`**  
 
 <br><br>
 
