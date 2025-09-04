@@ -23,19 +23,19 @@ name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
-# macOS용 MPS 인덱스 추가
+# macOS용 MPS 인덱스 추가 (사실상 이것은 cpu와 동일함. 사실 없어도 됨.)
 [[tool.uv.index]]
 name = "pytorch-mps"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
 
 [tool.uv.sources]
 torch = [
     # Windows/Linux → CUDA 12.8 wheel 인덱스
     { index = "pytorch-cu128", marker = "sys_platform == 'win32' and platform_machine == 'AMD64'" },
     { index = "pytorch-cu128", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
-
-    # macOS → MPS wheel 인덱스
+    # macOS → CPU wheel (MPS 지원 포함)
     { index = "pytorch-mps", marker = "sys_platform == 'darwin'" },
 ]
 torchvision = [
