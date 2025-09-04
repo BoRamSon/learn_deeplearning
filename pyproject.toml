@@ -11,6 +11,8 @@ dependencies = [
     "torch",
     "torchvision",
     "torchaudio",
+    "python-dotenv>=1.1.1",
+    "opencv-python>=4.11.0.86",
 ]
 
 [[tool.uv.index]]
