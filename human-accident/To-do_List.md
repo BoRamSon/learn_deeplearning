@@ -47,3 +47,10 @@
         - 검색어 :  pytorch custom dataset  
         - https://www.youtube.com/watch?v=ZoZHd0Zm3RY  
         - https://www.youtube.com/watch?v=38hn-FpRaJs  
+
+
+--- 
+## 🟢 모델 파악하기  
+- git clone https://github.com/pranoyr/cnn-lstm.git 받아왔습니다.  
+- 이제 main.py 파일에 주석을 달면서 파악해보겠습니다.  
+
