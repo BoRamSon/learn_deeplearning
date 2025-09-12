@@ -38,10 +38,12 @@
     - 폴더 비디오 path 잘 구성해서 폴더에 잘 담아둬야함.  
         - 폴더 이름 class 5개로 해서 하고,  
 
-    - tensor 형태로 잘 바꿔줘야함  
-        - Dataset, DataLoader 에 대해서 공부하기  
-    - 커스텀 데이터셋 제작.ipynb 파일을 참조하여 공부 잘하기  
-        - 유튜브 동영상 잘 참고해보자  
-            - 검색어 :  pytorch custom dataset  
-            - https://www.youtube.com/watch?v=ZoZHd0Zm3RY  
-            - https://www.youtube.com/watch?v=38hn-FpRaJs  
+--- 
+## 🟢 4번째 : [전처리]  
+- tensor 형태로 잘 바꿔줘야함  
+    - Dataset, DataLoader 에 대해서 공부하기  
+- 커스텀 데이터셋 제작.ipynb 파일을 참조하여 공부 잘하기  
+    - 유튜브 동영상 잘 참고해보자  
+        - 검색어 :  pytorch custom dataset  
+        - https://www.youtube.com/watch?v=ZoZHd0Zm3RY  
+        - https://www.youtube.com/watch?v=38hn-FpRaJs  
