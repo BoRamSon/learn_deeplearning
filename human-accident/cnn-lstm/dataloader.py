@@ -5,7 +5,10 @@ from torch.utils.data import DataLoader
 
 # --------------------------------
 # path 지정
+# 🔥 하드코딩
 origin = "C:\\Users\\bb\\Desktop\\learn_deeplearning\\human-accident\\data\\safety-data\\human-accident\\"
+# dataloader.py의 origin은 하드코딩 절대경로입니다. 재현성과 이동성을 위해 아래처럼 바꾸면 좋습니다:
+# origin = os.path.join(os.path.dirname(__file__), "data", "safety-data", "human-accident")
 
 human_accident_class = os.listdir(origin)
 print(human_accident_class)
