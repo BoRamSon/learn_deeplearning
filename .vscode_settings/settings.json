@@ -1,0 +1,70 @@
+
+// 🟩 Windows setting values
+{
+    // 🟢 font
+    // "editor.fontFamily": "'Fira Code', Consolas, 'Courier New', monospace",
+    "editor.fontFamily": "'Fira Code', 'D2Coding', Consolas, monospace",
+    "editor.fontLigatures": true,
+    "editor.fontSize": 13,
+    // "editor.fontWeight": "bold",
+    "editor.fontWeight": "550",
+
+    // 🟢 theme
+    // "workbench.iconTheme": "material-icon-theme",
+    // "workbench.colorTheme": "Solarized Light",
+
+    // 🟢 색상
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+        // {
+        //     "scope": "comment",
+        //     "settings": {
+        //     "foreground": "#A0A1A7",
+        //     "fontStyle": ""
+        //     }
+        // },
+        {
+            "scope": "string",
+            "settings": {
+            "foreground": "#d300c1"
+            }
+        },
+        {
+            "scope": "constant.numeric",
+            "settings": {
+            "foreground": "#8315f1",
+            "fontStyle": "bold"
+            }
+        },
+        {
+            "scope": "keyword",
+            "settings": {
+            // "foreground": "#4078F2",
+            "foreground": "#946904",
+            "fontStyle": "bold"
+            }
+        },
+        {
+            "scope": "variable",
+            "settings": {
+            "foreground": "#383A42"
+            }
+        },
+        {
+            "scope": "entity.name.function",
+            "settings": {
+            "foreground": "#049f32",
+            // "fontStyle": "bold"
+            }
+        },
+        {
+            "scope": "entity.name.type.class",
+            "settings": {
+            "foreground": "#f55142",
+            "fontStyle": "bold"
+            }
+        }
+        ]
+    }
+}
+
