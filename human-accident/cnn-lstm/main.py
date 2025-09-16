@@ -51,7 +51,8 @@ def resume_model(opt, model, optimizer):
 
 def get_loaders(opt):
     """Make dataloaders for train and validation sets"""
-    # train loader
+    # ----------------------------------
+    # ✅ train loader
     opt.mean = get_mean(opt.norm_value, dataset=opt.mean_dataset)  # 정규화에 사용할 평균값 계산
     if opt.no_mean_norm and not opt.std_norm:  # 평균과 표준편차 정규화를 모두 사용하지 않는 경우
         norm_method = Normalize([0, 0, 0], [1, 1, 1])  # 정규화를 수행하지 않는 것과 같은 효과 (0을 빼고 1로 나눔)
@@ -59,6 +60,7 @@ def get_loaders(opt):
         norm_method = Normalize(opt.mean, [1, 1, 1])  # 평균값만 빼고, 1로 나누어 표준편차 정규화는 생략
     else:  # 평균과 표준편차 정규화를 모두 사용하는 경우
         norm_method = Normalize(opt.mean, opt.std)  # 평균을 빼고 표준편차로 나눔
+    
     spatial_transform = Compose(  # 학습 데이터에 적용할 공간적 변환들을 정의
         [
             # crop_method,
@@ -68,11 +70,15 @@ def get_loaders(opt):
             norm_method,  # 위에서 정의한 정규화 방법 적용
         ]
     )
+    
     temporal_transform = TemporalRandomCrop(16)  # 비디오 프레임 시퀀스에서 16 프레임을 무작위로 잘라냄
+    
     target_transform = ClassLabel()  # 타겟 데이터에서 클래스 라벨만 추출
+    
     training_data = get_training_set(  # 학습 데이터셋 객체 생성
         opt, spatial_transform, temporal_transform, target_transform  # 옵션과 변환들을 전달
     )
+    
     train_loader = torch.utils.data.DataLoader(  # 학습 데이터 로더 생성
         training_data,  # 위에서 생성한 데이터셋 객체
         batch_size=opt.batch_size,  # 배치 크기 설정
@@ -81,7 +87,8 @@ def get_loaders(opt):
         pin_memory=True,  # GPU로 데이터를 더 빨리 전송하기 위해 메모리에 고정
     )
 
-    # validation loader
+    # ----------------------------------
+    # ✅ validation loader
     spatial_transform = Compose(  # 검증 데이터에 적용할 공간적 변환들을 정의 (보통 augmentation 제외)
         [
             Scale((opt.sample_size, opt.sample_size)),  # 이미지 크기를 (sample_size, sample_size)로 조절
@@ -123,15 +130,22 @@ def main_worker():
     # 5. CUDA for PyTorch
     device = torch.device(f"cuda:{opt.gpu}" if opt.use_cuda else "cpu")  # --use_cuda 옵션이 있으면 지정된 GPU를, 없으면 CPU를 사용하도록 설정
 
-    # tensorboard
+    # 6. tensorboard
     summary_writer = tensorboardX.SummaryWriter(log_dir="tf_logs")  # TensorBoard 로그를 저장할 디렉토리 설정 및 writer 객체 생성
-
-    # defining model
+    """ 
+    🟡 SummaryWriter   
+        ㄴ 로그(스칼라, 이미지, 히스토그램, 그래프 등)를 디스크에 기록하는 "쓰기 도구(writer)" 클래스입니다.
+        ㄴ 이 객체의 add_s calar, add_image, add_histogram, add_graph 등 메서드를 통해 이벤트를 기록합니다. 
+    🟡 log_dir="tf_logs"  ->   이벤트 파일을 저장할 디렉토리 경로
+    """
+    
+    # 7. defining model
     model = generate_model(opt, device)  # 설정(opt)에 맞는 model(model.py 파일 참조)을 생성하고 지정된 장치(device)로 이동
-    # get data loaders
+
+    # 8. get data loaders
     train_loader, val_loader = get_loaders(opt)  # 학습 및 검증 데이터 로더 생성
 
-    # optimizer
+    # 9. optimizer
     crnn_params = list(model.parameters())  # 최적화할 모델의 파라미터들을 리스트로 가져옴
     optimizer = torch.optim.Adam(  # Adam 옵티마이저 생성
         crnn_params, lr=opt.lr_rate, weight_decay=opt.weight_decay  # 모델 파라미터, 학습률, 가중치 감쇠(L2 정규화) 설정
