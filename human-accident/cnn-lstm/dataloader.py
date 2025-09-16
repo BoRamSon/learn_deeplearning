@@ -4,9 +4,12 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 # --------------------------------
-# path 지정
+# dataset path 지정
 # 🔥 하드코딩
-origin = "C:\\Users\\bb\\Desktop\\learn_deeplearning\\human-accident\\data\\safety-data\\human-accident\\"
+# origin = "C:\\Users\\bb\\Desktop\\learn_deeplearning\\human-accident\\data\\safety-data\\human-accident\\"
+# origin = "../data/safety-data/human-accident/"
+origin = "../data/test_out.avi" # mac에서 임시로 path를 지정하였습니다.
+
 # dataloader.py의 origin은 하드코딩 절대경로입니다. 재현성과 이동성을 위해 아래처럼 바꾸면 좋습니다:
 # origin = os.path.join(os.path.dirname(__file__), "data", "safety-data", "human-accident")
 
@@ -38,11 +41,15 @@ transform = transforms.Compose(
     ]
 )
 
+
+
 # --------------------------------
 # 이미지에 대한 경로, 일괄적으로 적용할 전처리 이 2가지를 인수로 넣어줌.
 dataset = CustomData(video_path, transform)
 
 
+# --------------------------------
+# 데이터로더 만들기
 dataloader = DataLoader(
     dataset=dataset,
     batch_size=8,  # 컴퓨터사양에 따라서 메모리가 처리할 수 있는 양을 정해줘야합니다.
