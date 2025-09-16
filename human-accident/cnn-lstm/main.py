@@ -9,6 +9,8 @@ import numpy as np  # 수치 연산을 위한 라이브러리
 from torch.utils.data import DataLoader  # 데이터셋을 미니배치로 나누어 로드하는 PyTorch 유틸리티
 from torch.optim import lr_scheduler  # 학습률 스케줄러를 위한 PyTorch 유틸리티
 
+# -------------------------------------------------------------------
+
 from opts import parse_opts  # 커맨드라인 인자 파싱을 위한 opts.py에서 parse_opts 함수 임포트
 
 from train import train_epoch  # 학습 로직이 구현된 train.py에서 train_epoch 함수 임포트
@@ -22,7 +24,6 @@ from dataset import get_training_set, get_validation_set  # 데이터셋을 가�
 from mean import get_mean, get_std  # 데이터 정규화를 위한 평균, 표준편차 값을 가져오는 mean.py의 함수들 임포트
 
 
-
 from spatial_transforms import (    # 이미지 프레임에 적용할 공간적 변환(augmentation) 함수들 임포트
     Compose,                        # 여러 변환을 묶어주는 클래스
     Normalize,                      # 텐서를 평균과 표준편차로 정규화하는 클래스
@@ -34,19 +35,58 @@ from spatial_transforms import (    # 이미지 프레임에 적용할 공간적
     RandomHorizontalFlip,           # 이미지를 무작위로 좌우 반전하는 클래스
     ToTensor,                       # PIL 이미지나 'numpy 배열'을 '텐서'로 변환하는 클래스
 )
+
 from temporal_transforms import LoopPadding, TemporalRandomCrop  # 비디오 시퀀스에 적용할 시간적 변환 함수들 임포트
+
 from target_transforms import ClassLabel, VideoID  # 타겟(라벨) 데이터에 적용할 변환 함수들 임포트
+
 from target_transforms import Compose as TargetCompose  # 타겟 변환을 묶어주기 위한 Compose 클래스 임포트
 
 
 def resume_model(opt, model, optimizer):
-    """Resume model"""
-    checkpoint = torch.load(opt.resume_path)  # 저장된 체크포인트 파일 로드
-    model.load_state_dict(checkpoint["state_dict"])  # 체크포인트에서 모델의 가중치(state_dict)를 현재 모델에 로드
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])  # 체크포인트에서 옵티마이저의 상태(state_dict)를 현재 옵티마이저에 로드
-    print("Model Restored from Epoch {}".format(checkpoint["epoch"]))  # 몇 번째 에폭에서 저장된 모델인지 출력
-    start_epoch = checkpoint["epoch"] + 1  # 다음 학습을 시작할 에폭 번호 설정 (저장된 에폭 + 1)
-    return start_epoch  # 시작할 에폭 번호 반환
+    """
+    Resume model
+
+    체크포인트(checkpoint)로부터 모델과 옵티마이저 상태를 불러와 학습을 이어갈 준비를 하는 함수.
+    입력:
+        opt       : argparse로 파싱된 옵션 객체 (opt.resume_path 가 체크포인트 경로여야 함)
+        model     : 미리 생성된 PyTorch 모델 인스턴스
+        optimizer : 미리 생성된 PyTorch 옵티마이저 인스턴스
+    반환:
+        start_epoch : 다음에 학습을 시작할 epoch 번호 (보통 저장된 epoch + 1)
+    주의:
+        - 체크포인트 파일의 내부 구조는 { "epoch": int, "state_dict": model_state_dict,
+                                    "optimizer_state_dict": optimizer_state_dict } 
+                                형태를 기대함.
+    """
+    # 1) 디스크에서 체크포인트 파일을 로드
+    # torch.load는 파일에 저장된 파이썬 객체(여기서는 dict)를 복원함.
+    # 주의: GPU에서 저장된 체크포인트를 CPU 환경에서 불러오면 오류가 날 수 있으므로
+    #       실제 코드에서는 map_location=device 사용을 권장.
+    checkpoint = torch.load(opt.resume_path)
+
+    # 2) 체크포인트 안의 모델 파라미터(state_dict)를 현재 모델 객체에 적용
+    # checkpoint["state_dict"]는 파라미터 이름->텐서 매핑 딕셔너리여야 함.
+    # 만약 저장할 때 DataParallel(model)을 사용해 저장했다면 키 앞에 'module.'이 붙어있을 수 있다.
+    # 모델 구조가 현재 모델과 완전히 일치하지 않으면 load_state_dict에서 에러가 발생할 수 있음.
+    model.load_state_dict(checkpoint["state_dict"])
+
+    # 3) 체크포인트 안의 옵티마이저 상태(state_dict)를 현재 옵티마이저에 적용
+    # 옵티마이저 상태에는 learning rate, 모멘텀 버퍼, param_groups, 그리고 내부 모멘텀 추정값 등이 포함됨.
+    # 옵티마이저 구조(param_groups 등)가 다르면 load_state_dict에서 예외가 발생할 수 있음.
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+    # 4) 복원된 체크포인트가 언제 저장된 것인지 사용자에게 출력
+    # checkpoint["epoch"]는 일반적으로 체크포인트를 저장한 에폭 번호(정수)를 가짐.
+    print("Model Restored from Epoch {}".format(checkpoint["epoch"]))
+
+    # 5) 함수 호출자에게 반환할 '다음 시작 에폭' 결정
+    # 보통 저장된 epoch가 5라면, 우리는 6번째 에폭(epoch=6)부터 학습을 이어가므로 +1 해준다.
+    start_epoch = checkpoint["epoch"] + 1
+
+    # 6) 계산된 시작 에폭 반환
+    return start_epoch
+
 
 
 def get_loaders(opt):
@@ -111,7 +151,7 @@ def get_loaders(opt):
     )
     return train_loader, val_loader  # 생성된 학습 및 검증 데이터 로더 반환
 
-
+# --------------------------------------------------------------------
 # 2. main_worker() 함수를 들여다보자~
 def main_worker():
     # 3. parsing
@@ -145,23 +185,35 @@ def main_worker():
     # 8. get data loaders
     train_loader, val_loader = get_loaders(opt)  # 학습 및 검증 데이터 로더 생성
 
-    # 9. optimizer
+    # 9. optimizer - 신경망의 가중치(파라미터)를 학습 데이터에 맞게 업데이트해주는 알고리즘
     crnn_params = list(model.parameters())  # 최적화할 모델의 파라미터들을 리스트로 가져옴
     optimizer = torch.optim.Adam(  # Adam 옵티마이저 생성
         crnn_params, lr=opt.lr_rate, weight_decay=opt.weight_decay  # 모델 파라미터, 학습률, 가중치 감쇠(L2 정규화) 설정
     )
+    # 🔎 optimizer 설명
+        # 1. 신경망은 처음에 랜덤한 가중치(weight) 로 시작합니다.
+        # 2. 입력 데이터를 통과시켜 출력(prediction) 을 계산합니다.
+        # 3. 출력과 정답(label)을 비교해 손실(loss) 을 계산합니다.
+        # 4. 역전파(backpropagation) 로 각 가중치가 손실에 얼마나 영향을 미쳤는지 기울기(gradient) 를 구합니다.
+        # 5. 마지막으로 optimizer 가 그 기울기를 사용해서 가중치를 조금씩 조정합니다.
+        # 이 과정을 여러 번 반복하면서 모델이 점점 "데이터에 잘 맞게" 학습됩니다.
 
+    
+    # 10. 학습률 스케줄러(Learning Rate Scheduler) 설정 코드
     # scheduler = lr_scheduler.ReduceLROnPlateau(
-    # 	optimizer, 'min', patience=opt.lr_patience)
+    # 	optimizer, 'min', patience=opt.lr_patience 
+    # )
+
+    # 11. 손실함수
     criterion = nn.CrossEntropyLoss()  # 다중 클래스 분류를 위한 CrossEntropy 손실 함수 정의
 
-    # resume model
-    if opt.resume_path:  # --resume_path 옵션으로 체크포인트 경로가 주어진 경우
+    # 12. resume model - 어디서 학습을 시작할 것인가?
+    if opt.resume_path:  # “truthy”(빈 문자열/None/False가 아닌 값)인지 검사 / --resume_path 옵션으로 체크포인트 경로가 주어진 경우
         start_epoch = resume_model(opt, model, optimizer)  # 모델과 옵티마이저 상태를 복원하고 시작 에폭을 받아옴
     else:  # 체크포인트 경로가 주어지지 않은 경우 (처음부터 학습)
         start_epoch = 1  # 1 에폭부터 학습 시작
 
-    # start training
+    # 13. start training - 학습 시작
     for epoch in range(start_epoch, opt.n_epochs + 1):  # 시작 에폭부터 마지막 에폭까지 반복
         train_loss, train_acc = train_epoch(  # 1 에폭 동안 모델을 학습
             model, train_loader, criterion, optimizer, epoch, opt.log_interval, device  # 필요한 모든 객체와 설정을 전달
