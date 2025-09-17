@@ -8,6 +8,7 @@ import torch.nn as nn                   # 신경망 레이어/손실함수 등
 from torch.optim import Adam            # Adam 옵티마이저
 from torch.utils.data import DataLoader # 미니배치 데이터 로더
 from torchvision import transforms      # 이미지 전처리(transform)
+from tqdm import tqdm                    # 진행 상황 표시용
 
 from train_valid_dataset import CustomData  # 우리가 만든 커스텀 데이터셋(Train/Valid 분할 포함)
 from models.cnnlstm import CNNLSTM          # CNN + LSTM 모델 정의
@@ -104,7 +105,8 @@ def validate(model, loader, criterion, device):
     running_acc = 0.0
     total = 0
     with torch.no_grad():        # 추론만 수행(메모리/연산 절약)
-        for x, y in loader:
+        pbar = tqdm(loader, total=len(loader), desc="Val", leave=False)
+        for x, y in pbar:
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
             logits = model(x)
@@ -114,6 +116,10 @@ def validate(model, loader, criterion, device):
             preds = logits.argmax(dim=1)
             running_acc += (preds == y).sum().item()
             total += bs
+            # 진행 상황 표시(러닝 평균)
+            avg_loss = (running_loss / total) if total else 0.0
+            avg_acc = (running_acc / total) if total else 0.0
+            pbar.set_postfix({"loss": f"{avg_loss:.4f}", "acc": f"{avg_acc*100:.2f}%"})
     return (running_loss / total) if total else 0.0, (running_acc / total) if total else 0.0
 
 
@@ -200,7 +206,8 @@ def main():
             running_loss = 0.0
             running_acc = 0.0
             total = 0
-            for x, y in loader:
+            pbar = tqdm(loader, total=len(loader), desc=f"Train {epoch}", leave=False)
+            for x, y in pbar:
                 x = x.to(device, non_blocking=True)
                 y = y.to(device, non_blocking=True)
 
@@ -231,6 +238,10 @@ def main():
                 preds = logits.argmax(dim=1)
                 running_acc += (preds == y).sum().item()
                 total += bs
+                # 진행 상황 표시(러닝 평균)
+                avg_loss = (running_loss / total) if total else 0.0
+                avg_acc = (running_acc / total) if total else 0.0
+                pbar.set_postfix({"loss": f"{avg_loss:.4f}", "acc": f"{avg_acc*100:.2f}%"})
 
             return (running_loss / total) if total else 0.0, (running_acc / total) if total else 0.0
 

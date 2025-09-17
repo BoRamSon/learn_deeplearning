@@ -17,6 +17,7 @@ dependencies = [
     "nbconvert>=7.16.6",
     "nbformat>=5.10.4",
     "seaborn>=0.13.2",
+    "tqdm>=4.67.1",
 ]
 
 [[tool.uv.index]]
