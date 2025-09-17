@@ -3,14 +3,20 @@ import torch.nn as nn   # PyTorch의 신경망 모듈(nn) 임포트
 import torchvision.models as models  # torchvision에서 제공하는 사전 학습된 모델들을 임포트
 from torch.nn.utils.rnn import pack_padded_sequence  # 패딩된 시퀀스를 압축하기 위한 유틸리티 (현재 코드에서는 사용되지 않음)
 import torch.nn.functional as F  # 활성화 함수(ReLU 등)와 같은 함수형 API를 포함하는 모듈
-from torchvision.models import resnet101  # torchvision에서 ResNet-101 모델을 직접 임포트
+
+# ❤️ 경고로 인한 수정
+from torchvision.models import resnet101, ResNet101_Weights  # 최신 API: weights enum 사용
 
 
 class CNNLSTM(nn.Module):  # nn.Module을 상속받아 CNN-LSTM 모델 클래스를 정의
     def __init__(self, num_classes=2):  # 모델 초기화 메서드. num_classes는 최종 분류할 클래스의 수
         super(CNNLSTM, self).__init__()  # 부모 클래스(nn.Module)의 초기화 메서드 호출
         # CNN 특징 추출기(Feature Extractor) 정의
-        self.resnet = resnet101(pretrained=True)  # ImageNet으로 사전 학습된 ResNet-101 모델을 로드
+
+        # ❤️ 경고로 인한 수정
+        # ImageNet 사전학습 가중치 로드(권장 방식): pretrained 대신 weights enum 사용
+        self.resnet = resnet101(weights=ResNet101_Weights.DEFAULT)
+
         # ResNet의 마지막 Fully Connected Layer를 새로운 레이어로 교체
         # 기존 ResNet-101의 출력 차원을 300으로 변경하여 LSTM의 입력으로 사용
         self.resnet.fc = nn.Sequential(nn.Linear(self.resnet.fc.in_features, 300))
