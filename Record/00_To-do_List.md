@@ -60,6 +60,7 @@
 ---
 --- 
 ## 🟢 본격적으로 training 들어가기  
-
+1. 나의 dataset을 train, valid로 분류하는 것도 커스텀테이터셋 클래스에 만듭니다.  
+2. 최종적으로 dataloader.py를 main에서 사용할 수 있도록 나만의 main.py를 만듭니다.  
 
 
