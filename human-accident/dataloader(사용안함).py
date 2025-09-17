@@ -31,6 +31,9 @@ def get_dataloader():
     # 여러 가지 전처리 방법을 하나로 묶어주는 transforms.Compose를 사용합니다.
     transform = transforms.Compose(
         [
+            # 🔥🔥🔥🔥🔥 [추가된 부분] numpy 배열(RGB)을 PIL 이미지로 변환 (프레임 단위 전처리를 위해 필요)
+            transforms.ToPILImage(),
+
             # 1. 이미지 크기 조절: 모든 이미지의 크기를 224x224 픽셀로 맞춥니다.
             transforms.Resize((224, 224)),  # 자르는 게 아니라 축소/확대
             #  🆘 현재 모든 영상의 크기가 1290 x 1080으로 동일하기 때문에 Resize를 해줘야하는지 모르겠습니다.
