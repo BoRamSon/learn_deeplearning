@@ -22,7 +22,7 @@ def get_dataloaders(root: str, batch_size: int, num_workers: int, train_ratio: f
     - train_ratio : train/valid 분할 비율(0.7이면 70:30)
     - seed        : 분할 셔플 시드(재현성)
     """
-    
+
     # 프레임 단위 전처리 파이프라인: NumPy(RGB) -> PIL -> Resize -> Tensor -> Normalize(ImageNet)
     transform = transforms.Compose([
         transforms.ToPILImage(),                 # NumPy 이미지를 PIL 이미지로 변환
@@ -118,6 +118,7 @@ def validate(model, loader, criterion, device):
 
 
 def main():
+    # ---------------------------------------------------------------------------
     """커맨드라인 인자를 받아 전체 학습 파이프라인을 실행합니다. main()에 매개변수를 주는 느낌입니다."""
     parser = argparse.ArgumentParser(description="CustomData + CNNLSTM simple training entry")
     # 데이터 경로/하이퍼파라미터 인자 정의
@@ -137,11 +138,14 @@ def main():
     parser.add_argument("--lr-factor", type=float, default=0.5)
     args = parser.parse_args()
 
+    # ---------------------------------------------------------------------------
     os.makedirs(args.save_dir, exist_ok=True)        # 체크포인트 저장 폴더 생성
 
+    # ---------------------------------------------------------------------------
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")                        # 사용 디바이스 출력
 
+    # ---------------------------------------------------------------------------
     # 🔥🔥🔥🔥🔥 여기서 root path를 지정해주고 있습니다.
     # --root 경로를 절대 경로로 해석하여 혼동 방지
     root_path = Path(args.root)
@@ -154,6 +158,7 @@ def main():
         print("경로를 확인하거나, 올바른 절대/상대 경로로 다시 실행하세요.")
         return
 
+    # ---------------------------------------------------------------------------
     # 🔥🔥🔥🔥🔥 학습/검증 데이터로더 준비
     train_loader, valid_loader = get_dataloaders(
         root=str(root_path),
@@ -164,11 +169,13 @@ def main():
     )
     print(f"Train samples: {len(train_loader.dataset)}, Valid samples: {len(valid_loader.dataset)}")
 
+    # ---------------------------------------------------------------------------
     # 모델/손실/옵티마이저 정의
     model = CNNLSTM(num_classes=args.num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
+    # ---------------------------------------------------------------------------
     # (옵션) ReduceLROnPlateau 스케줄러: 검증 손실(val_loss)이 감소하지 않으면 LR 감소
     scheduler = None
     if args.use_scheduler:
@@ -177,11 +184,59 @@ def main():
             optimizer, mode="min", factor=args.lr_factor, patience=args.lr_patience, verbose=True
         )
 
+    # ---------------------------------------------------------------------------
     # 🔥🔥🔥🔥🔥 학습 루프
     best_val_acc = 0.0
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
-        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
+
+        # =========================================================================================================
+        # 첫 배치에서 GPU 사용 여부를 확인하기 위한 디버그 출력
+        printed_gpu_info = False
+
+        def _train_one_epoch_with_debug(model, loader, criterion, optimizer, device):
+            nonlocal printed_gpu_info
+            model.train()
+            running_loss = 0.0
+            running_acc = 0.0
+            total = 0
+            for x, y in loader:
+                x = x.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True)
+
+                if not printed_gpu_info:
+                    try:
+                        model_device = next(model.parameters()).device
+                        resnet_dev = model.resnet.fc[0].weight.device if hasattr(model.resnet, 'fc') else model_device
+                        lstm_dev = model.lstm.weight_ih_l0.device
+                        print("[디버그] 입력 x.device:", x.device)
+                        print("[디버그] 모델 파라미터 device:", model_device)
+                        print("[디버그] ResNet fc device:", resnet_dev)
+                        print("[디버그] LSTM device:", lstm_dev)
+                        if torch.cuda.is_available():
+                            print("[디버그] CUDA name:", torch.cuda.get_device_name(0))
+                            print("[디버그] CUDA memory allocated (MB):", round(torch.cuda.memory_allocated() / (1024**2), 2))
+                    except Exception as e:
+                        print(f"[디버그] 디바이스 확인 중 오류: {e}")
+                    printed_gpu_info = True
+
+                optimizer.zero_grad()
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                optimizer.step()
+
+                bs = x.size(0)
+                running_loss += loss.item() * bs
+                preds = logits.argmax(dim=1)
+                running_acc += (preds == y).sum().item()
+                total += bs
+
+            return (running_loss / total) if total else 0.0, (running_acc / total) if total else 0.0
+
+        train_loss, train_acc = _train_one_epoch_with_debug(model, train_loader, criterion, optimizer, device)
+        # =========================================================================================================
+
         val_loss, val_acc = validate(model, valid_loader, criterion, device)
         took = time.time() - t0
 
