@@ -8,7 +8,7 @@ import torch.nn as nn                   # 신경망 레이어/손실함수 등
 from torch.optim import Adam            # Adam 옵티마이저
 from torch.utils.data import DataLoader # 미니배치 데이터 로더
 from torchvision import transforms      # 이미지 전처리(transform)
-from tqdm import tqdm                    # 진행 상황 표시용
+from tqdm import tqdm                   # ✏️ 학습 진행 상황 표시용
 
 from train_valid_dataset import CustomData  # 우리가 만든 커스텀 데이터셋(Train/Valid 분할 포함)
 from models.cnnlstm import CNNLSTM          # CNN + LSTM 모델 정의
