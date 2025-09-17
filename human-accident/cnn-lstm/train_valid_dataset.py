@@ -143,13 +143,13 @@ class CustomData(Dataset):
 
         target_fps = 30
 
-        original_fps = int(video.get(cv2.CAP_PROP_FPS))
         # 디버깅용 로그: 원본 FPS
-        print(f"현재 초당 프레임 수 : {original_fps}")
+        original_fps = int(video.get(cv2.CAP_PROP_FPS))
+        # print(f"현재 초당 프레임 수 : {original_fps}")
 
-        frame_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         # 디버깅용 로그: 총 프레임 수
-        print(f"현재 총 프레임 수 : {frame_length}")
+        frame_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        # print(f"현재 총 프레임 수 : {frame_length}")
 
         frames = []
         count = 0
