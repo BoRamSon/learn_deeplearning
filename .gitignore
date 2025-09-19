@@ -215,3 +215,7 @@ __marimo__/
 safety-data
 FashionMNIST
 snapshots
+best.pth
+node_modules
+.next
+.env
