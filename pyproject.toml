@@ -18,7 +18,6 @@ dependencies = [
     "nbformat>=5.10.4",
     "seaborn>=0.13.2",
     "tqdm>=4.67.1",
-    "streamlit>=1.49.1",
 ]
 
 [[tool.uv.index]]
