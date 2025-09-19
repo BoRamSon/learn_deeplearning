@@ -48,17 +48,19 @@ def load_model_if_needed():
             model = CNNLSTM(num_classes=6)
             
             model_paths = [
-                "best.pth",
-                "../snapshots/best.pth", 
-                "snapshots/best.pth"
+                "snapshots/best.pth", # Render.com 배포 환경에서 일반적인 경로
+                "best.pth", # 로컬 테스트용
+                "../snapshots/best.pth" # 다른 경로 구조일 경우 대비
             ]
             
             model_loaded = False
             for path in model_paths:
                 if os.path.exists(path):
                     print(f"Model loaded from: {path}")
-                    checkpoint = torch.load(path, map_location=device, weights_only=True)
-                    model.load_state_dict(checkpoint)
+                    # checkpoint는 'state_dict' 키를 포함하는 딕셔너리입니다.
+                    checkpoint = torch.load(path, map_location=device)
+                    # state_dict를 직접 로드해야 합니다.
+                    model.load_state_dict(checkpoint['state_dict'])
                     model_loaded = True
                     break
             
