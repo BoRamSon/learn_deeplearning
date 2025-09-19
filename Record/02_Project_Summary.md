@@ -81,8 +81,8 @@
     class CNNLSTM(nn.Module):  
         def __init__(self, num_classes=2):  
             # ResNet-101 (사전훈련) → 300차원 특징 추출  
-            # torchvision 최신 권장 API: pretrained 대신 weights enum 사용
-            from torchvision.models import resnet101, ResNet101_Weights
+            # torchvision 최신 권장 API: pretrained 대신 weights enum 사용  
+            from torchvision.models import resnet101, ResNet101_Weights  
             self.resnet = resnet101(weights=ResNet101_Weights.DEFAULT)  
             self.resnet.fc = nn.Sequential(nn.Linear(self.resnet.fc.in_features, 300))  
             
@@ -131,10 +131,10 @@ uv run python human-accident/cnn-lstm/main.py \
 uv run python human-accident/cnn-lstm/main.py --use-scheduler  
 ```
 
-추가 실행 팁(Windows PowerShell):
-- 여러 줄 명령은 줄 끝에 캐럿(^) 또는 백틱(`)을 사용하세요. 줄 앞에 `+` 같은 문자가 있으면 파싱 오류가 납니다.
-- 상대경로 대신 절대경로 사용을 권장합니다. `main.py`는 `--root`를 절대경로로 변환하여 출력합니다.
-  - 예: `--root "C:\\Users\\bb\\Desktop\\learn_deeplearning\\human-accident\\data\\safety-data\\human-accident"`
+추가 실행 팁(Windows PowerShell):  
+- 여러 줄 명령은 줄 끝에 캐럿(^) 또는 백틱(`)을 사용하세요. 줄 앞에 `+` 같은 문자가 있으면 파싱 오류가 납니다.  
+- 상대경로 대신 절대경로 사용을 권장합니다. `main.py`는 `--root`를 절대경로로 변환하여 출력합니다.  
+  - 예: `--root "C:\\Users\\bb\\Desktop\\learn_deeplearning\\human-accident\\data\\safety-data\\human-accident"`  
 
 <br>
 
@@ -145,12 +145,12 @@ uv run python human-accident/cnn-lstm/main.py --use-scheduler
 - **간단 학습 진입점**: 기존 UCF101 전용 코드 제거, 커스텀 데이터셋 중심으로 재구성  
 - **체크포인트 관리**: 매 에폭 저장 + best.pth 별도 보관  
 
-추가 개선 사항(최근 반영):
-- **절대 경로 해석**: `main.py`에서 `--root`를 `Path.resolve()`로 절대경로화하여 경로 혼동 방지 및 친절한 오류 메시지 출력.
-- **tqdm 진행바**: 학습/검증 루프에 tqdm 적용, 러닝 평균 `loss/acc`를 postfix로 표시.
-- **GPU 디버그 로그**: 첫 학습 배치에서 입력/모델/LSTM/ResNet의 device, CUDA 이름, 메모리 사용량을 출력해 GPU 사용 여부를 즉시 확인.
-- **torchvision 경고 제거**: `pretrained=True` 대신 `weights=ResNet101_Weights.DEFAULT` 사용.
-- **디코딩 경고 가이드**: MPEG4 디코딩 경고(`ac-tex damaged`, `Error at MB`) 발생 시, ffmpeg 리믹스/재인코딩 방법 안내.
+추가 개선 사항(최근 반영):  
+- **절대 경로 해석**: `main.py`에서 `--root`를 `Path.resolve()`로 절대경로화하여 경로 혼동 방지 및 친절한 오류 메시지 출력.  
+- **tqdm 진행바**: 학습/검증 루프에 tqdm 적용, 러닝 평균 `loss/acc`를 postfix로 표시.  
+- **GPU 디버그 로그**: 첫 학습 배치에서 입력/모델/LSTM/ResNet의 device, CUDA 이름, 메모리 사용량을 출력해 GPU 사용 여부를 즉시 확인.  
+- **torchvision 경고 제거**: `pretrained=True` 대신 `weights=ResNet101_Weights.DEFAULT` 사용.  
+- **디코딩 경고 가이드**: MPEG4 디코딩 경고(`ac-tex damaged`, `Error at MB`) 발생 시, ffmpeg 리믹스/재인코딩 방법 안내.  
 
 <br>
 
@@ -167,26 +167,31 @@ uv run python human-accident/cnn-lstm/main.py --use-scheduler
 
 ---
 
-## 🟡 부록 A. 디코딩 경고(FFmpeg) 대응 가이드
-- 증상 예시: `ac-tex damaged at X Y`, `Error at MB: Z` (MPEG4 디코딩 중)
-- 원인: 손상/불완전 인코딩, 컨테이너/코덱 문제 등으로 특정 매크로블록을 해석 못함
-- 영향: 일부 프레임 읽기 실패 → 더미 프레임 처리로 학습은 진행되나 품질 저하 가능
-- 대응:
-  - 무손실 리믹스(빠름):
+## 🟡 부록 A. 디코딩 경고(FFmpeg) 대응 가이드  
+- 증상 예시: `ac-tex damaged at X Y`, `Error at MB: Z` (MPEG4 디코딩 중)  
+- 원인: 손상/불완전 인코딩, 컨테이너/코덱 문제 등으로 특정 매크로블록을 해석 못함  
+- 영향: 일부 프레임 읽기 실패 → 더미 프레임 처리로 학습은 진행되나 품질 저하 가능  
+- 대응:  
+  - 무손실 리믹스(빠름):  
     ```powershell
-    ffmpeg -err_detect ignore_err -fflags +discardcorrupt -i "input.mp4" -c copy "remux.mp4"
+    ffmpeg -err_detect ignore_err -fflags +discardcorrupt -i "input.mp4" -c copy "remux.mp4"  
     ```
-  - 안전 재인코딩(H.264, 30fps):
+  - 안전 재인코딩(H.264, 30fps):  
     ```powershell
-    ffmpeg -v error -err_detect ignore_err -fflags +genpts -i "input.mp4" -c:v libx264 -pix_fmt yuv420p -r 30 -an "reencoded.mp4"
+    ffmpeg -v error -err_detect ignore_err -fflags +genpts -i "input.mp4" -c:v libx264 -pix_fmt yuv420p -r 30 -an "reencoded.mp4"  
     ```
-  - 에러 탐지만:
+  - 에러 탐지만:  
     ```powershell
-    ffmpeg -v error -i "input.mp4" -f null - 2>errors.log
+    ffmpeg -v error -i "input.mp4" -f null - 2>errors.log  
     ```
 
-## 🟡 부록 B. GPU 사용 확인 방법
-- 학습 시작 시 첫 배치에 다음 정보가 콘솔에 출력됩니다.
-  - 입력 텐서 `x.device`, 모델 파라미터 device, ResNet fc device, LSTM device
-  - `CUDA name`, `CUDA memory allocated (MB)`
-- 예상 출력: 모두 `cuda:0`이면 GPU 사용 중. `cpu`로 나오면 CUDA 설정/설치 점검 필요.
+## 🟡 부록 B. GPU 사용 확인 방법  
+- 학습 시작 시 첫 배치에 다음 정보가 콘솔에 출력됩니다.  
+  - 입력 텐서 `x.device`, 모델 파라미터 device, ResNet fc device, LSTM device  
+  - `CUDA name`, `CUDA memory allocated (MB)`  
+- 예상 출력: 모두 `cuda:0`이면 GPU 사용 중. `cpu`로 나오면 CUDA 설정/설치 점검 필요.  
+
+
+---
+# 🟩 학습 결과  
+- [Epoch 10/10] train_loss=1.3484 train_acc=40.00% | val_loss=1.7288 val_acc=31.48% | time=2272.3s  
