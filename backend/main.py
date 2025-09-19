@@ -37,36 +37,43 @@ transform = transforms.Compose([
 
 @app.on_event("startup")
 async def startup_event():
+    print("FastAPI server started. Model will be loaded on first request.")
+
+def load_model_if_needed():
+    """필요할 때만 모델 로드"""
     global model
-    try:
-        print("Loading model...")
-        model = CNNLSTM(num_classes=6)
-        
-        # 모델 파일 경로들 시도
-        model_paths = [
-            "best.pth",
-            "../snapshots/best.pth", 
-            "snapshots/best.pth"
-        ]
-        
-        model_loaded = False
-        for path in model_paths:
-            if os.path.exists(path):
-                print(f"Model loaded from: {path}")
-                checkpoint = torch.load(path, map_location=device)
-                model.load_state_dict(checkpoint)
-                model_loaded = True
-                break
-        
-        if not model_loaded:
-            print("Model file not found. Using dummy model.")
-        
-        model.to(device)
-        model.eval()
-        print("Model loading complete!")
-        
-    except Exception as e:
-        print(f"Model loading failed: {e}")
+    if model is None:
+        try:
+            print("Loading model on demand...")
+            model = CNNLSTM(num_classes=6)
+            
+            model_paths = [
+                "best.pth",
+                "../snapshots/best.pth", 
+                "snapshots/best.pth"
+            ]
+            
+            model_loaded = False
+            for path in model_paths:
+                if os.path.exists(path):
+                    print(f"Model loaded from: {path}")
+                    checkpoint = torch.load(path, map_location=device, weights_only=True)
+                    model.load_state_dict(checkpoint)
+                    model_loaded = True
+                    break
+            
+            if not model_loaded:
+                print("Model file not found. Using dummy model.")
+            
+            model.to(device)
+            model.eval()
+            print("Model loading complete!")
+            
+        except Exception as e:
+            print(f"Model loading failed: {e}")
+            model = None
+    
+    return model
 
 def process_video(video_path, fixed_len=16):
     """비디오 전처리"""
@@ -116,7 +123,9 @@ async def health():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    if model is None:
+    # 지연 로딩으로 모델 로드
+    current_model = load_model_if_needed()
+    if current_model is None:
         raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
     
     if not file.content_type.startswith('video/'):
@@ -139,7 +148,7 @@ async def predict(file: UploadFile = File(...)):
         # 예측
         with torch.no_grad():
             video_tensor = video_tensor.to(device)
-            logits = model(video_tensor)
+            logits = current_model(video_tensor)
             probabilities = torch.softmax(logits, dim=1)
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0, predicted_class].item()
