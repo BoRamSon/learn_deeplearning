@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
 // Streamlit과 동일한 클래스 정의
@@ -10,9 +10,13 @@ const CLASS_NAMES_KR = ["충돌 사고", "넘어짐 사고", "추락 사고", "�
 export default function Home() {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [result, setResult] = useState<any>(null)
   const [modelStatus, setModelStatus] = useState<any>(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 컴포넌트 마운트 시 모델 상태 확인 및 화면 크기 감지
   useEffect(() => {
@@ -38,13 +42,55 @@ export default function Home() {
     }
   }
 
+  const validateAndSetFile = (selectedFile: File) => {
+    // 파일 크기 체크 (100MB 제한)
+    if (selectedFile.size > 100 * 1024 * 1024) {
+      setError('파일 크기는 100MB 이하여야 합니다.')
+      return false
+    }
+    
+    // 파일 형식 체크
+    if (!selectedFile.type.startsWith('video/')) {
+      setError('비디오 파일만 업로드 가능합니다.')
+      return false
+    }
+    
+    setFile(selectedFile)
+    setResult(null)
+    setError(null)
+    setUploadProgress(0)
+    return true
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0]
-      setFile(selectedFile)
-      setResult(null)
-    } else {
-      setFile(null)
+      validateAndSetFile(e.target.files[0])
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      validateAndSetFile(files[0])
+    }
+  }
+
+  const handleClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
     }
   }
 
@@ -52,17 +98,35 @@ export default function Home() {
     if (!file) return
 
     setLoading(true)
+    setError(null)
+    setUploadProgress(0)
+    
     const formData = new FormData()
     formData.append('file', file)
 
     try {
       const response = await axios.post('/api/predict', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            setUploadProgress(progress)
+          }
+        }
       })
       setResult(response.data)
-    } catch (error) {
+      setUploadProgress(100)
+    } catch (error: any) {
       console.error('Upload failed:', error)
-      alert('업로드 실패')
+      if (error.response?.data?.detail) {
+        setError(error.response.data.detail)
+      } else if (error.response?.status === 413) {
+        setError('파일이 너무 큽니다. 더 작은 파일을 선택해주세요.')
+      } else if (error.response?.status === 503) {
+        setError('모델이 로드되지 않았습니다. 잠시 후 다시 시도해주세요.')
+      } else {
+        setError('업로드 중 오류가 발생했습니다. 다시 시도해주세요.')
+      }
     } finally {
       setLoading(false)
     }
@@ -122,6 +186,21 @@ export default function Home() {
           </div>
         )}
 
+        {/* 에러 메시지 */}
+        {error && (
+          <div style={{
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.375rem',
+            border: '1px solid #f5c6cb',
+            marginBottom: '1.5rem',
+            fontSize: '0.9rem'
+          }}>
+            ❌ {error}
+          </div>
+        )}
+
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
@@ -149,29 +228,41 @@ export default function Home() {
                 📤 비디오 업로드
               </h2>
               
-              <div style={{
-                border: '2px dashed #cccccc',
-                borderRadius: '0.5rem',
-                padding: isMobile ? '1.5rem' : '2rem',
-                textAlign: 'center',
-                backgroundColor: '#fafafa'
-              }}>
+              <div 
+                style={{
+                  border: `2px dashed ${dragOver ? '#ff4b4b' : '#cccccc'}`,
+                  borderRadius: '0.5rem',
+                  padding: isMobile ? '1.5rem' : '2rem',
+                  textAlign: 'center',
+                  backgroundColor: dragOver ? '#fff5f5' : '#fafafa',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleClick}
+              >
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="video/*"
                   onChange={handleFileChange}
-                  style={{
-                    marginBottom: '1rem',
-                    padding: '0.5rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '0.25rem',
-                    width: '100%'
-                  }}
+                  style={{ display: 'none' }}
                 />
                 
-                <p style={{ color: '#666', fontSize: '0.9rem', margin: '0.5rem 0' }}>
-                  지원 형식: MP4, AVI, MOV, MKV, WMV
-                </p>
+                {!file ? (
+                  <div>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
+                    <p style={{ fontSize: isMobile ? '1rem' : '1.2rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                      {dragOver ? '파일을 여기에 놓으세요' : '비디오 파일을 드래그하거나 클릭하여 업로드'}
+                    </p>
+                    <p style={{ color: '#666', fontSize: '0.9rem', margin: '0.5rem 0' }}>
+                      지원 형식: MP4, AVI, MOV, MKV, WMV (최대 100MB)
+                    </p>
+                  </div>
+                ) : null}
                 
                 {file && (
                   <div style={{ marginTop: '1rem' }}>
@@ -192,31 +283,65 @@ export default function Home() {
               </div>
 
               {file && (
-                <button
-                  onClick={handleUpload}
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1.5rem',
-                    backgroundColor: loading ? '#6c757d' : '#ff4b4b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    fontSize: '1rem',
-                    fontWeight: '500',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    marginTop: '1rem',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    if (!loading) e.currentTarget.style.backgroundColor = '#e63946'
-                  }}
-                  onMouseOut={(e) => {
-                    if (!loading) e.currentTarget.style.backgroundColor = '#ff4b4b'
-                  }}
-                >
-                  {loading ? '비디오 분석 중...' : '🔍 안전사고 분석 시작'}
-                </button>
+                <div>
+                  <button
+                    onClick={handleUpload}
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: loading ? '#6c757d' : '#ff4b4b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '1rem',
+                      fontWeight: '500',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      marginTop: '1rem',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!loading) e.currentTarget.style.backgroundColor = '#e63946'
+                    }}
+                    onMouseOut={(e) => {
+                      if (!loading) e.currentTarget.style.backgroundColor = '#ff4b4b'
+                    }}
+                  >
+                    {loading ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid transparent',
+                          borderTop: '2px solid white',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }}></div>
+                        비디오 분석 중... ({uploadProgress}%)
+                      </div>
+                    ) : '🔍 안전사고 분석 시작'}
+                  </button>
+                  
+                  {/* 프로그레스 바 */}
+                  {loading && (
+                    <div style={{
+                      width: '100%',
+                      height: '8px',
+                      backgroundColor: '#e9ecef',
+                      borderRadius: '4px',
+                      marginTop: '0.5rem',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${uploadProgress}%`,
+                        height: '100%',
+                        backgroundColor: '#ff4b4b',
+                        borderRadius: '4px',
+                        transition: 'width 0.3s ease'
+                      }}></div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
