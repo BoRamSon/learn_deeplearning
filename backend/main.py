@@ -36,13 +36,10 @@ transform = transforms.Compose([
 ])
 
 @app.on_event("startup")
-async def startup_event():
-    print("FastAPI server started. Model will be loaded on first request.")
-
-def load_model_if_needed():
-    """필요할 때만 모델 로드"""
+def load_model():
+    """서버 시작 시 모델을 로드합니다."""
     global model
-    if model is None:
+    if model is None: # 중복 로딩 방지
         try:
             print("Loading model on demand...")
             model = CNNLSTM(num_classes=6)
@@ -74,15 +71,13 @@ def load_model_if_needed():
         except Exception as e:
             print(f"Model loading failed: {e}")
             model = None
-    
-    return model
 
 def process_video(video_path, fixed_len=16):
     """비디오 전처리"""
     cap = cv2.VideoCapture(video_path)
     frames = []
     
-    while True:
+    while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
@@ -125,10 +120,8 @@ async def health():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    # 지연 로딩으로 모델 로드
-    current_model = load_model_if_needed()
-    if current_model is None:
-        raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
+    if model is None:
+        raise HTTPException(status_code=503, detail="모델이 로드되지 않았거나 로드에 실패했습니다.")
     
     if not file.content_type.startswith('video/'):
         raise HTTPException(status_code=400, detail="비디오 파일만 지원합니다")
@@ -150,8 +143,8 @@ async def predict(file: UploadFile = File(...)):
         # 예측
         with torch.no_grad():
             video_tensor = video_tensor.to(device)
-            logits = current_model(video_tensor)
-            probabilities = torch.softmax(logits, dim=1)
+            logits = model(video_tensor)
+            probabilities = torch.softmax(logits, dim=1).cpu()
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0, predicted_class].item()
         
@@ -166,7 +159,7 @@ async def predict(file: UploadFile = File(...)):
             },
             "probabilities": {
                 CLASS_NAMES_KR[i]: float(prob) 
-                for i, prob in enumerate(probabilities[0].cpu().numpy())
+                for i, prob in enumerate(probabilities[0].numpy())
             }
         }
         

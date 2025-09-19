@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet101, ResNet101_Weights
+from torchvision.models import resnet18, ResNet18_Weights
 
 class CNNLSTM(nn.Module):
     def __init__(self, num_classes=6):
         super(CNNLSTM, self).__init__()
         
         # CNN 특징 추출기
-        self.resnet = resnet101(weights=ResNet101_Weights.DEFAULT)
+        self.resnet = resnet18(weights=ResNet18_Weights.DEFAULT)
         self.resnet.fc = nn.Sequential(nn.Linear(self.resnet.fc.in_features, 300))
         
         # LSTM 시퀀스 모델
