@@ -10,9 +10,11 @@ const CLASS_NAMES_KR = ["충돌 사고", "넘어짐 사고", "추락 사고", "�
 export default function Home() {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [result, setResult] = useState<any>(null)
   const [modelStatus, setModelStatus] = useState<any>(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // 컴포넌트 마운트 시 모델 상태 확인 및 화면 크기 감지
   useEffect(() => {
@@ -40,8 +42,24 @@ export default function Home() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+      const selectedFile = e.target.files[0]
+      
+      // 파일 크기 체크 (100MB 제한)
+      if (selectedFile.size > 100 * 1024 * 1024) {
+        setError('파일 크기는 100MB 이하여야 합니다.')
+        return
+      }
+      
+      // 파일 형식 체크
+      if (!selectedFile.type.startsWith('video/')) {
+        setError('비디오 파일만 업로드 가능합니다.')
+        return
+      }
+      
+      setFile(selectedFile)
       setResult(null)
+      setError(null)
+      setUploadProgress(0)
     }
   }
 
@@ -250,10 +268,18 @@ export default function Home() {
                   marginBottom: '1.5rem',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                  <div style={{ 
+                    fontSize: isMobile ? '1.2rem' : '1.5rem', 
+                    fontWeight: '600', 
+                    marginBottom: '0.5rem',
+                    lineHeight: '1.3'
+                  }}>
                     {result.prediction.is_accident ? '⚠️ ' + result.prediction.class_name_kr + ' 감지!' : '✅ ' + result.prediction.class_name_kr}
                   </div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '500' }}>
+                  <div style={{ 
+                    fontSize: isMobile ? '1rem' : '1.2rem', 
+                    fontWeight: '500' 
+                  }}>
                     신뢰도: {(result.prediction.confidence * 100).toFixed(2)}%
                   </div>
                   <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.8 }}>
@@ -265,7 +291,7 @@ export default function Home() {
                 <div>
                   <h3 style={{ 
                     color: '#262730',
-                    fontSize: '1.2rem',
+                    fontSize: isMobile ? '1.1rem' : '1.2rem',
                     fontWeight: '600',
                     marginBottom: '1rem'
                   }}>
@@ -318,9 +344,27 @@ export default function Home() {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#f8f9fa' }}>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid #e6e6e6', fontSize: '0.9rem', fontWeight: '600' }}>클래스</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid #e6e6e6', fontSize: '0.9rem', fontWeight: '600' }}>영문</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'right', borderBottom: '1px solid #e6e6e6', fontSize: '0.9rem', fontWeight: '600' }}>확률</th>
+                          <th style={{ 
+                            padding: isMobile ? '0.5rem' : '0.75rem', 
+                            textAlign: 'left', 
+                            borderBottom: '1px solid #e6e6e6', 
+                            fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                            fontWeight: '600' 
+                          }}>클래스</th>
+                          <th style={{ 
+                            padding: isMobile ? '0.5rem' : '0.75rem', 
+                            textAlign: 'left', 
+                            borderBottom: '1px solid #e6e6e6', 
+                            fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                            fontWeight: '600' 
+                          }}>영문</th>
+                          <th style={{ 
+                            padding: isMobile ? '0.5rem' : '0.75rem', 
+                            textAlign: 'right', 
+                            borderBottom: '1px solid #e6e6e6', 
+                            fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                            fontWeight: '600' 
+                          }}>확률</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -334,9 +378,23 @@ export default function Home() {
                               backgroundColor: isHighest ? '#fff3cd' : 'white',
                               borderBottom: index < CLASS_NAMES_KR.length - 1 ? '1px solid #e6e6e6' : 'none'
                             }}>
-                              <td style={{ padding: '0.75rem', fontSize: '0.9rem', fontWeight: isHighest ? '600' : '400' }}>{classKr}</td>
-                              <td style={{ padding: '0.75rem', fontSize: '0.9rem', color: '#666', fontFamily: 'monospace' }}>{classEn}</td>
-                              <td style={{ padding: '0.75rem', textAlign: 'right', fontSize: '0.9rem', fontWeight: isHighest ? '600' : '400' }}>
+                              <td style={{ 
+                                padding: isMobile ? '0.5rem' : '0.75rem', 
+                                fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                                fontWeight: isHighest ? '600' : '400' 
+                              }}>{classKr}</td>
+                              <td style={{ 
+                                padding: isMobile ? '0.5rem' : '0.75rem', 
+                                fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                                color: '#666', 
+                                fontFamily: 'monospace' 
+                              }}>{classEn}</td>
+                              <td style={{ 
+                                padding: isMobile ? '0.5rem' : '0.75rem', 
+                                textAlign: 'right', 
+                                fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                                fontWeight: isHighest ? '600' : '400' 
+                              }}>
                                 {(prob * 100).toFixed(2)}%
                               </td>
                             </tr>
@@ -350,7 +408,7 @@ export default function Home() {
             ) : (
               <div style={{
                 backgroundColor: 'white',
-                padding: '2rem',
+                padding: isMobile ? '1.5rem' : '2rem',
                 borderRadius: '0.5rem',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 border: '1px solid #e6e6e6',
@@ -367,23 +425,28 @@ export default function Home() {
         {/* 하단 시스템 정보 */}
         <div style={{
           backgroundColor: 'white',
-          padding: '1.5rem',
+          padding: isMobile ? '1rem' : '1.5rem',
           borderRadius: '0.5rem',
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           border: '1px solid #e6e6e6',
-          marginTop: '2rem'
+          marginTop: isMobile ? '1.5rem' : '2rem'
         }}>
           <details>
             <summary style={{ 
               cursor: 'pointer', 
-              fontSize: '1.1rem', 
+              fontSize: isMobile ? '1rem' : '1.1rem', 
               fontWeight: '600',
               color: '#262730',
               marginBottom: '1rem'
             }}>
               ℹ️ 시스템 정보
             </summary>
-            <div style={{ paddingLeft: '1rem', color: '#666', lineHeight: '1.6' }}>
+            <div style={{ 
+              paddingLeft: isMobile ? '0.5rem' : '1rem', 
+              color: '#666', 
+              lineHeight: '1.6',
+              fontSize: isMobile ? '0.9rem' : '1rem'
+            }}>
               <p><strong>모델 정보:</strong></p>
               <ul style={{ marginLeft: '1rem' }}>
                 <li>아키텍처: CNN-LSTM</li>
