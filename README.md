@@ -31,11 +31,25 @@
     - pip install -r requirements.txt  
     - uvicorn main:app --host 0.0.0.0 --port 8000 --reload  
 - render  
-    - Name: safety-detection-backend  
-    - Environment: Python 3  
-    - Region: Oregon (US West)  
-    - Branch: main  
-    - Root Directory: backend  
-    - Build Command: pip install -r requirements.txt  
-    - Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT  
-    - PYTHON_VERSION=3.11.0  
+    - create project  
+        - Name: human-accident-project  
+            - backend  
+                - "New +" → "Web Service" 클릭  
+                - Name: safety-detection-backend  
+                - Environment: Python 3  
+                - Region: Oregon (US West)  
+                - Branch: main  
+                - Root Directory: backend  
+                - Build Command: pip install -r requirements.txt  
+                - Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT  
+                - PYTHON_VERSION=3.11.0  
+            - frontend  
+                - "New +" → "Static Site" 클릭  
+                - Name: safety-detection-frontend  
+                - Environment: Node  
+                - Region: Oregon (US West)  
+                - Branch: main  
+                - Root Directory: frontend  
+                - Build Command: npm install && npm run build  
+                - Publish Directory: .next  
+                - NEXT_PUBLIC_API_URL=https://safety-detection-backend.onrender.com  (백엔드 URL 입력)  
