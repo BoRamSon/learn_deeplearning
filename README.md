@@ -30,3 +30,12 @@
     - cd backend  
     - pip install -r requirements.txt  
     - uvicorn main:app --host 0.0.0.0 --port 8000 --reload  
+- render  
+    - Name: safety-detection-backend  
+    - Environment: Python 3  
+    - Region: Oregon (US West)  
+    - Branch: main  
+    - Root Directory: backend  
+    - Build Command: pip install -r requirements.txt  
+    - Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT  
+    - PYTHON_VERSION=3.11.0  
