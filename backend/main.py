@@ -1,10 +1,13 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 import torch
 import cv2
 import numpy as np
 import tempfile
 import os
+import uuid
+from typing import Dict
 from torchvision import transforms
 from model import CNNLSTM
 
@@ -22,6 +25,9 @@ app.add_middleware(
 # 전역 변수
 model = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# 백그라운드 작업 결과를 저장할 딕셔너리
+tasks: Dict[str, Dict] = {}
 
 # 클래스 정의
 CLASS_NAMES = ["bump", "fall-down", "fall-off", "hit", "jam", "no-accident"]
@@ -118,37 +124,31 @@ async def health():
         "device": str(device)
     }
 
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    if model is None:
-        raise HTTPException(status_code=503, detail="모델이 로드되지 않았거나 로드에 실패했습니다.")
-    
-    if not file.content_type.startswith('video/'):
-        raise HTTPException(status_code=400, detail="비디오 파일만 지원합니다")
-    
+def run_prediction_in_background(file_content: bytes, task_id: str):
+    """백그라운드에서 비디오 처리 및 추론을 수행하는 함수"""
+    tasks[task_id] = {"status": "processing", "result": None}
     try:
-        # 임시 파일 저장
+        # 임시 파일에 비디오 내용 쓰기
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
+            tmp_file.write(file_content)
             temp_path = tmp_file.name
-        
-        # 비디오 처리
+
+        # 비디오 처리 (CPU 집약적)
         video_tensor = process_video(temp_path)
-        os.unlink(temp_path)  # 임시 파일 삭제
-        
+        os.unlink(temp_path)
+
         if video_tensor is None:
-            raise HTTPException(status_code=400, detail="비디오 처리 실패")
-        
-        # 예측
+            raise ValueError("Failed to process video. It might be empty or corrupted.")
+
+        # 추론 (CPU 집약적)
         with torch.no_grad():
             video_tensor = video_tensor.to(device)
             logits = model(video_tensor)
             probabilities = torch.softmax(logits, dim=1).cpu()
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0, predicted_class].item()
-        
-        return {
+
+        result = {
             "success": True,
             "prediction": {
                 "class_id": predicted_class,
@@ -158,13 +158,50 @@ async def predict(file: UploadFile = File(...)):
                 "is_accident": predicted_class != 5
             },
             "probabilities": {
-                CLASS_NAMES_KR[i]: float(prob) 
+                CLASS_NAMES_KR[i]: float(prob)
                 for i, prob in enumerate(probabilities[0].numpy())
             }
         }
-        
+        tasks[task_id] = {"status": "completed", "result": result}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"예측 실패: {str(e)}")
+        print(f"Task {task_id} failed: {e}")
+        tasks[task_id] = {"status": "failed", "result": str(e)}
+
+@app.post("/predict", status_code=202)
+async def predict_async(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    """비디오를 업로드하고 백그라운드 처리를 시작합니다."""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model is not loaded or failed to load.")
+    
+    if not file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="Only video files are supported.")
+
+    task_id = str(uuid.uuid4())
+    file_content = await file.read()
+
+    # 백그라운드 작업 추가
+    background_tasks.add_task(run_prediction_in_background, file_content, task_id)
+
+    return {
+        "message": "Video upload successful. Processing has started.",
+        "task_id": task_id,
+        "status_url": f"/tasks/{task_id}"
+    }
+
+@app.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """작업 ID로 처리 상태와 결과를 조회합니다."""
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    
+    if task["status"] == "completed":
+        # 성공적으로 완료된 작업은 메모리에서 제거할 수 있습니다.
+        # 여기서는 간단히 유지하지만, 실제 서비스에서는 TTL(Time-To-Live)을 두는 것이 좋습니다.
+        pass
+
+    return task
 
 if __name__ == "__main__":
     import uvicorn
