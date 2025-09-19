@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 
 python-multipart==0.0.6
---index-url https://download.pytorch.org/whl/cpu
+
 torch==2.1.0
 torchvision==0.16.0
 opencv-python-headless==4.8.1.78
