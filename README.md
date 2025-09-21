@@ -77,17 +77,40 @@
 <br><br>
 
 ## ❌ Website for Prevention of occupational fatalities Project  
+- ⭕️ backend: FastAPI  
+    - install FastAPI  
+      - pyproject.toml 파일 내 추가  
+        ```markdown
+          [project.optional-dependencies]  
+          backend = [  
+              "fastapi>=0.111.0",  
+              "uvicorn[standard]>=0.30.1",  
+              "python-multipart>=0.0.9",  
+              "opencv-python-headless>=4.8.1.78", # backend는 headless로 충분  
+          ]  
+        ```
+      - `uv pip install -e ".[backend]"` 로 백엔드 의존성 설치  
+    - 백엔드 서버 실행  
+      ```bash
+      cd backend  
+      source .venv/bin/activate  # 가상환경 활성화 (macOS/Linux)  
+      uvicorn main:app --host 0.0.0.0 --port 8000 --reload  
+      # http://localhost:8000/docs  
+      ```
+
 - ⭕️ frontend: Next.js  
     - install node.js  
+      - for Windows  
+        - node.js homapage에서 exe 다운로드 및 설치 / 재부팅  
+        - Verify the Node.js version: `node -v`   # Should print "v22.19.0".  
+      - for Mac (with Homebrew)  
+        - Node.js 다운로드 및 설치: `brew install node@22`  
+        - Verify the Node.js version: `node -v`   # Should print "v22.19.0".  
+        - pnpm 다운로드 및 설치: `corepack enable pnpm`  
+        - pnpm 버전 확인: `pnpm -v`  
     - cd frontend  
-    - npm install  
-    - npm run dev  
-
-
-- ⭕️ backend: FastAPI  
-    - cd backend  
-    - pip install -r requirements.txt  
-    - uvicorn main:app --host 0.0.0.0 --port 8000 --reload  
+    - pnpm install  
+    - pnpm run dev  
 
 
 - ❌ render.com (가중치 실패)  
@@ -120,8 +143,7 @@
 <br><br>
 
 ## 🏆 Work Toward a Goal  
-- [ ] None  
-- [ ] None  
+- [ ] x  
 
 
 <br><br>
@@ -151,8 +173,3 @@
 <br><br>
 
 ## 🔗 reference  
-
-
-
-
-
