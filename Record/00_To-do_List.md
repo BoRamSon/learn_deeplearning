@@ -7,8 +7,7 @@
 
 ---
 ## 🟢 데이터 확보하기  
-
-- ㅇㅇ  
+- 데이터셋 출처: [스마트 제조 시설 안전 감시를 위한 데이터](https://www.aihub.or.kr/aihubdata/data/view.do?pageIndex=1&currMenu=115&topMenu=100&srchOptnCnd=OPTNCND001&searchKeyword=%EC%8A%A4%EB%A7%88%ED%8A%B8%EC%A0%9C%EC%A1%B0&srchDetailCnd=DETAILCND001&srchOrder=ORDER001&srchPagePer=20&aihubDataSe=data&dataSetSn=71679)  
 
 ---
 ## 🟢 확보한 데이터 확인 / 간략한 Practice  
@@ -19,13 +18,11 @@
 2. 라벨 파일에서 어노테이션 -> 세그멘테이션 라벨을 가져옴  
 3. 라벨에서 x, y 포인트를 가져오기  
 4. 이미지 위에 점찍기 cv2.circle함수를 이용  
-
 5. 바운딩 박스 그리기 cv2.rectangle  
 
 
 ---
-## 🟢 모델 선정하기 커스텀 데이터셋  
-- 무슨모델?  
+## 🟢 모델 선정하기 커스텀 데이터셋    
 - https://www.kaggle.com/datasets/pypiahmad/realistic-action-recognition-ucf50/data  
 - https://www.kaggle.com/datasets/matthewjansen/ucf101-action-recognition  
 

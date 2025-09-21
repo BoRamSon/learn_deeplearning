@@ -1,7 +1,6 @@
-# 🟩 프로젝트 요약 정리  
+# 🟩 모델 학습  
 
-본 문서는 `human-accident` 프로젝트에서 커스텀 비디오 데이터로 CNN-LSTM을 학습할 수 있도록 구성한 전반적인 과정을 정리합니다.  
-(시도 / 실패 / 롤백 등은 제외하고, 현재 동작하는 파이프라인 기준)  
+본 문서는 `human-accident` 프로젝트에서 커스텀 비디오 데이터로 CNN-LSTM을 학습할 수 있도록 구성한 전반적인 과정을 정리  
 
 <br>
 
@@ -194,4 +193,5 @@ uv run python human-accident/cnn-lstm/main.py --use-scheduler
 
 ---
 # 🟩 학습 결과  
-- [Epoch 10/10] train_loss=1.3484 train_acc=40.00% | val_loss=1.7288 val_acc=31.48% | time=2272.3s  
+- 25.09.17  
+  - [Epoch 10/10] train_loss=1.3484 train_acc=40.00% | val_loss=1.7288 val_acc=31.48% | time=2272.3s  
