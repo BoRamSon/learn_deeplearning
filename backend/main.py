@@ -1,13 +1,10 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import torch
 import cv2
 import numpy as np
 import tempfile
 import os
-import uuid
-from typing import Dict
 from torchvision import transforms
 from model import CNNLSTM
 
@@ -26,8 +23,24 @@ app.add_middleware(
 model = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 백그라운드 작업 결과를 저장할 딕셔너리
-tasks: Dict[str, Dict] = {}
+# GPU 디버깅 정보 출력
+print("🔍 GPU/디바이스 정보:")
+print(f"PyTorch 버전: {torch.__version__}")
+print(f"CUDA 사용 가능: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"CUDA 버전: {torch.version.cuda}")
+    print(f"GPU 개수: {torch.cuda.device_count()}")
+    print(f"현재 GPU: {torch.cuda.get_device_name(0)}")
+    print(f"GPU 메모리: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+else:
+    print("❌ CUDA를 사용할 수 없습니다.")
+    print("가능한 해결 방법:")
+    print("1. PyTorch CUDA 버전 설치")
+    print("2. NVIDIA 드라이버 확인")
+    print("3. CUDA toolkit 설치")
+    print("4. nvidia-smi 명령어로 GPU 상태 확인")
+
+print(f"선택된 디바이스: {device}")
 
 # 클래스 정의
 CLASS_NAMES = ["bump", "fall-down", "fall-off", "hit", "jam", "no-accident"]
@@ -42,59 +55,63 @@ transform = transforms.Compose([
 ])
 
 @app.on_event("startup")
-def load_model():
-    """서버 시작 시 모델을 로드합니다."""
+async def startup_event():
     global model
-    if model is None: # 중복 로딩 방지
-        try:
-            print("Loading model on demand...")
-            model = CNNLSTM(num_classes=6)
-            
-            model_paths = [
-                "snapshots/best.pth", # Render.com 배포 환경에서 일반적인 경로
-                "best.pth", # 로컬 테스트용
-                "../snapshots/best.pth" # 다른 경로 구조일 경우 대비
-            ]
-            
-            model_loaded = False
-            for path in model_paths:
-                if os.path.exists(path):
-                    print(f"Model loaded from: {path}")
-                    # checkpoint는 'state_dict' 키를 포함하는 딕셔너리입니다.
-                    checkpoint = torch.load(path, map_location=device)
-                    # state_dict를 직접 로드해야 합니다.
-                    model.load_state_dict(checkpoint['state_dict'])
-                    model_loaded = True
-                    break
-            
-            if not model_loaded:
-                print("Model file not found. Using dummy model.")
-            
-            model.to(device)
-            model.eval()
-            print("Model loading complete!")
-            
-        except Exception as e:
-            print(f"Model loading failed: {e}")
-            model = None
+    try:
+        print("Loading model...")
+
+        # 먼저 device 확인
+        print(f"Using device: {device}")
+
+        # 모델을 device에서 생성
+        model = CNNLSTM(num_classes=6).to(device)
+
+        # 모델 파일 경로들 시도
+        model_paths = [
+            "best.pth",
+            "../snapshots/best.pth",
+            "snapshots/best.pth"
+        ]
+
+        model_loaded = False
+        for path in model_paths:
+            if os.path.exists(path):
+                print(f"Model loaded from: {path}")
+                # 가중치를 로드할 때도 device 명시
+                checkpoint = torch.load(path, map_location=device)
+                model.load_state_dict(checkpoint)
+                model_loaded = True
+                break
+
+        if not model_loaded:
+            print("Model file not found. Using dummy model.")
+
+        # 모델이 이미 device에 있으므로 다시 to(device) 호출 불필요
+        model.eval()
+        print("Model loading complete!")
+
+    except Exception as e:
+        print(f"Model loading failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 def process_video(video_path, fixed_len=16):
     """비디오 전처리"""
     cap = cv2.VideoCapture(video_path)
     frames = []
-    
-    while cap.isOpened():
+
+    while True:
         ret, frame = cap.read()
         if not ret:
             break
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frames.append(frame_rgb)
-    
+
     cap.release()
-    
+
     if len(frames) == 0:
         return None
-    
+
     # 16프레임으로 맞추기
     if len(frames) >= fixed_len:
         indices = np.linspace(0, len(frames) - 1, fixed_len, dtype=int)
@@ -102,15 +119,15 @@ def process_video(video_path, fixed_len=16):
     else:
         while len(frames) < fixed_len:
             frames.append(frames[-1])
-    
+
     # Transform 적용
     processed_frames = []
     for frame in frames:
         tensor_frame = transform(frame)
         processed_frames.append(tensor_frame)
-    
+
     video_tensor = torch.stack(processed_frames).unsqueeze(0)  # (1, T, C, H, W)
-    return video_tensor
+    return video_tensor.to(device)  # GPU로 이동
 
 @app.get("/")
 async def root():
@@ -124,31 +141,37 @@ async def health():
         "device": str(device)
     }
 
-def run_prediction_in_background(file_content: bytes, task_id: str):
-    """백그라운드에서 비디오 처리 및 추론을 수행하는 함수"""
-    tasks[task_id] = {"status": "processing", "result": None}
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    if model is None:
+        raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
+
+    if not file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="비디오 파일만 지원합니다")
+
     try:
-        # 임시 파일에 비디오 내용 쓰기
+        # 임시 파일 저장
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
-            tmp_file.write(file_content)
+            content = await file.read()
+            tmp_file.write(content)
             temp_path = tmp_file.name
 
-        # 비디오 처리 (CPU 집약적)
+        # 비디오 처리
         video_tensor = process_video(temp_path)
-        os.unlink(temp_path)
+        os.unlink(temp_path)  # 임시 파일 삭제
 
         if video_tensor is None:
-            raise ValueError("Failed to process video. It might be empty or corrupted.")
+            raise HTTPException(status_code=400, detail="비디오 처리 실패")
 
-        # 추론 (CPU 집약적)
+        # 예측
         with torch.no_grad():
-            video_tensor = video_tensor.to(device)
+            # video_tensor는 이미 GPU에 있으므로 추가 .to(device) 불필요
             logits = model(video_tensor)
-            probabilities = torch.softmax(logits, dim=1).cpu()
+            probabilities = torch.softmax(logits, dim=1)
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0, predicted_class].item()
 
-        result = {
+        return {
             "success": True,
             "prediction": {
                 "class_id": predicted_class,
@@ -159,49 +182,12 @@ def run_prediction_in_background(file_content: bytes, task_id: str):
             },
             "probabilities": {
                 CLASS_NAMES_KR[i]: float(prob)
-                for i, prob in enumerate(probabilities[0].numpy())
+                for i, prob in enumerate(probabilities[0].cpu().numpy())
             }
         }
-        tasks[task_id] = {"status": "completed", "result": result}
 
     except Exception as e:
-        print(f"Task {task_id} failed: {e}")
-        tasks[task_id] = {"status": "failed", "result": str(e)}
-
-@app.post("/predict", status_code=202)
-async def predict_async(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    """비디오를 업로드하고 백그라운드 처리를 시작합니다."""
-    if model is None:
-        raise HTTPException(status_code=503, detail="Model is not loaded or failed to load.")
-    
-    if not file.content_type.startswith('video/'):
-        raise HTTPException(status_code=400, detail="Only video files are supported.")
-
-    task_id = str(uuid.uuid4())
-    file_content = await file.read()
-
-    # 백그라운드 작업 추가
-    background_tasks.add_task(run_prediction_in_background, file_content, task_id)
-
-    return {
-        "message": "Video upload successful. Processing has started.",
-        "task_id": task_id,
-        "status_url": f"/tasks/{task_id}"
-    }
-
-@app.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
-    """작업 ID로 처리 상태와 결과를 조회합니다."""
-    task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    
-    if task["status"] == "completed":
-        # 성공적으로 완료된 작업은 메모리에서 제거할 수 있습니다.
-        # 여기서는 간단히 유지하지만, 실제 서비스에서는 TTL(Time-To-Live)을 두는 것이 좋습니다.
-        pass
-
-    return task
+        raise HTTPException(status_code=500, detail=f"예측 실패: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
