@@ -94,30 +94,6 @@ export default function Home() {
     }
   }
 
-  const pollTaskStatus = async (taskId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await axios.get(`/api/tasks/${taskId}`);
-        const task = response.data;
-
-        if (task.status === 'completed') {
-          clearInterval(interval);
-          setResult(task.result);
-          setUploadProgress(100);
-          setLoading(false);
-        } else if (task.status === 'failed') {
-          clearInterval(interval);
-          setError('분석 중 오류가 발생했습니다: ' + task.result);
-          setLoading(false);
-        }
-      } catch (error) {
-        clearInterval(interval);
-        setError('결과를 가져오는 중 오류가 발생했습니다.');
-        setLoading(false);
-      }
-    }, 2000); // 2초마다 폴링
-  };
-
   const handleUpload = async () => {
     if (!file) return
 
@@ -138,8 +114,8 @@ export default function Home() {
           }
         }
       })
-      // 비동기 작업 시작 및 폴링
-      await pollTaskStatus(response.data.task_id);
+      setResult(response.data)
+      setUploadProgress(100)
     } catch (error: any) {
       console.error('Upload failed:', error)
       if (error.response?.data?.detail) {
@@ -151,6 +127,7 @@ export default function Home() {
       } else {
         setError('업로드 중 오류가 발생했습니다. 다시 시도해주세요.')
       }
+    } finally {
       setLoading(false)
     }
   }
