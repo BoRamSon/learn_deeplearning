@@ -1,0 +1,22 @@
+{
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.black-formatter",
+      "ms-python.vscode-pylance",
+      "ms-toolsai.jupyter",
+      "ms-toolsai.jupyter-renderers",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      // "biomejs.biome",
+      "charliermarsh.ruff",
+      "cweijan.vscode-database-client2",
+      "pkief.material-icon-theme",
+      "apic.double-space-md",
+      "astro-build.astro-vscode",
+      "albert.tabout",
+      "mechatroner.rainbow-csv",
+      "oderwat.indent-rainbow",
+      "unifiedjs.vscode-mdx",
+    ]
+  }
+  
